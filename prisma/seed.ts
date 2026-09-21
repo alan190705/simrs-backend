@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -51,6 +52,47 @@ async function main() {
       skipDuplicates: true,
     });
   }
+
+  const existingAdmin = await prisma.user.findFirst({
+    where: { username: 'admin' },
+  });
+  if (!existingAdmin) {
+    const passwordHash = await bcrypt.hash('Admin123!', 10);
+    const superAdminRole = await prisma.role.findUnique({ where: { code: 'SUPER_ADMIN' } });
+    const defaultBranch = await prisma.branch.findUnique({ where: { code } });
+
+    const adminUser = await prisma.user.create({
+      data: {
+        username: 'admin',
+        email: 'admin@simrs.local',
+        fullName: 'Super Administrator',
+        passwordHash,
+        isActive: true,
+      },
+    });
+
+    if (superAdminRole) {
+      await prisma.userRole.create({
+        data: {
+          userId: adminUser.id,
+          roleId: superAdminRole.id,
+          branchId: defaultBranch?.id ?? null,
+        },
+      });
+    }
+
+    if (defaultBranch) {
+      await prisma.userBranch.create({
+        data: {
+          userId: adminUser.id,
+          branchId: defaultBranch.id,
+          isDefault: true,
+        },
+      });
+    }
+    console.log('User Super Admin dibuat: username "admin", password "Admin123!".');
+  }
+
   console.log(`Seed selesai: cabang ${code}, ${all.length} permission, ${Object.keys(ROLES).length} role.`);
 }
 
