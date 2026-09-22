@@ -4,22 +4,21 @@ import { PrismaService } from '../../database/prisma.service';
 import { ApiResult } from '../../common/dto/api-result';
 
 @UseGuards(JwtAuthGuard)
-@Controller('branches')
-export class BranchesController {
+@Controller('roles')
+export class RolesController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
   async findAll() {
-    const branches = await this.prisma.branch.findMany({
-      where: { isActive: true },
+    const roles = await this.prisma.role.findMany({
       select: {
         id: true,
         code: true,
         name: true,
-        address: true,
+        description: true,
       },
       orderBy: { name: 'asc' },
     });
-    return new ApiResult(branches, 'Berhasil');
+    return new ApiResult(roles, 'Berhasil');
   }
 }
