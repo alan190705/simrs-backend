@@ -29,6 +29,16 @@ export class UserBranchInput {
   isDefault?: boolean;
 }
 
+// Input untuk module access
+export class UserModuleInput {
+  @IsString()
+  moduleCode!: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  permissions!: string[];
+}
+
 export class CreateUserDto {
   @IsString()
   @MinLength(3)
@@ -64,4 +74,11 @@ export class CreateUserDto {
   @ValidateNested({ each: true })
   @Type(() => UserBranchInput)
   branches?: UserBranchInput[];
+
+  // Module access — kalau kosong, pakai default dari role
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UserModuleInput)
+  modules?: UserModuleInput[];
 }

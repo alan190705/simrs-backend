@@ -25,46 +25,113 @@ model Branch {
 }
 
 model User {
-  id            String         @id @default(uuid(7)) @db.Uuid
-  username      String         @unique
-  email         String?        @unique
-  fullName      String         @map("full_name")
-  passwordHash  String         @map("password_hash")
-  isActive      Boolean        @default(true) @map("is_active")
-  lastLoginAt   DateTime?      @map("last_login_at")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  deletedAt     DateTime?      @map("deleted_at")
+  id            String             @id @default(uuid(7)) @db.Uuid
+  username      String             @unique
+  email         String?            @unique
+  fullName      String             @map("full_name")
+  passwordHash  String             @map("password_hash")
+  isActive      Boolean            @default(true) @map("is_active")
+  lastLoginAt   DateTime?          @map("last_login_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  deletedAt     DateTime?          @map("deleted_at")
   roles         UserRole[]
   branches      UserBranch[]
   refreshTokens RefreshToken[]
   auditLogs     AuditLog[]
+  moduleAccess  UserModuleAccess[]
 
   @@map("users")
 }
 
 model Role {
-  id          String           @id @default(uuid(7)) @db.Uuid
-  code        String           @unique
-  name        String
-  description String?
-  isSystem    Boolean          @default(false) @map("is_system")
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-  users       UserRole[]
-  permissions RolePermission[]
+  id                String                 @id @default(uuid(7)) @db.Uuid
+  code              String                 @unique
+  name              String
+  description       String?
+  isSystem          Boolean                @default(false) @map("is_system")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  users             UserRole[]
+  permissions       RolePermission[]
+  modulePermissions RoleModulePermission[]
 
   @@map("roles")
 }
 
 model Permission {
-  id          String           @id @default(uuid(7)) @db.Uuid
-  code        String           @unique // format modul:aksi, mis. patient:read
-  description String?
-  createdAt   DateTime         @default(now()) @map("created_at")
-  roles       RolePermission[]
+  id                 String                 @id @default(uuid(7)) @db.Uuid
+  moduleId           String                 @map("module_id") @db.Uuid
+  code               String // "view", "create", "update", "delete"
+  name               String // "Lihat", "Buat", "Ubah", "Hapus"
+  description        String?
+  createdAt          DateTime               @default(now()) @map("created_at")
+  module             Module                 @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  roleMappings       RoleModulePermission[]
+  userModuleAccesses UserModuleAccess[]
+  rolePermissions    RolePermission[]
 
+  @@unique([moduleId, code])
+  @@index([moduleId])
   @@map("permissions")
+}
+
+// ============================================================
+// MODULE & ACCESS CONTROL
+// User → Role → Module → Permission
+// ============================================================
+
+model Module {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  code        String   @unique // "dokter", "farmasi"
+  name        String // "Dokter", "Farmasi"
+  description String?
+  group       String? // "Pelayanan", "Penunjang"
+  icon        String? // "Stethoscope"
+  order       Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  permissions  Permission[]
+  roleMappings RoleModulePermission[]
+  userMappings UserModuleAccess[]
+
+  @@index([group, order])
+  @@map("modules")
+}
+
+// Default permission per role
+model RoleModulePermission {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  roleId       String     @map("role_id") @db.Uuid
+  moduleId     String     @map("module_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module       Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, moduleId, permissionId])
+  @@index([roleId])
+  @@map("role_module_permissions")
+}
+
+// Override per user (grant / deny)
+model UserModuleAccess {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  moduleId     String     @map("module_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  granted      Boolean    @default(true)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module       Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId, permissionId])
+  @@index([userId])
+  @@map("user_module_access")
 }
 
 // branchId NULL = role berlaku di semua cabang. NULL tidak dianggap sama oleh UNIQUE di PostgreSQL,

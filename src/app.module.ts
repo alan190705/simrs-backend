@@ -5,8 +5,9 @@ import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { BranchesModule } from './modules/branches/branches.module';
 import { HealthModule } from './modules/health/health.module';
-import { UsersModule } from './modules/users';
-import { RolesModule } from './modules/roles';
+import { UsersModule } from './modules/users/users.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { AccessModule } from './modules/access/access.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { RolesModule } from './modules/roles';
     HealthModule,
     UsersModule,
     RolesModule,
+    AccessModule,
   ],
 })
 export class AppModule {}
